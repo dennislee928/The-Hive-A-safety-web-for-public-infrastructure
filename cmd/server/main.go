@@ -20,6 +20,7 @@ import (
 	"github.com/erh-safety-system/poc/internal/trust"
 	"github.com/erh-safety-system/poc/internal/decision"
 	"github.com/erh-safety-system/poc/internal/erh"
+	"github.com/erh-safety-system/poc/internal/gate"
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,6 +41,8 @@ func main() {
 		&model.DeviceTrustScore{},
 		&model.DeviceReportHistory{},
 		&decision.DecisionStateRecord{},
+		&model.ApprovalRequest{},
+		&model.KeepaliveSession{},
 	); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -65,6 +68,12 @@ func main() {
 	ethicalPrimeCalculator := erh.NewEthicalPrimeCalculator(database.DB)
 	_ = erh.NewBreakpointDetector(database.DB) // TODO: use in background monitoring
 
+	// Initialize gate services
+	approvalService := gate.NewApprovalService(database.DB)
+	keepaliveService := gate.NewKeepaliveService(database.DB)
+	ttlManager := gate.NewTTLManager(database.DB)
+	rollbackService := gate.NewRollbackService(database.DB, decisionService, keepaliveService, ttlManager)
+	
 	// Initialize handlers
 	crowdHandler := handler.NewCrowdHandler(signalService, rateLimiter, trustScorer)
 	staffHandler := handler.NewStaffHandler(signalService)
@@ -72,9 +81,17 @@ func main() {
 	emergencyHandler := handler.NewEmergencyHandler(signalService)
 	operatorHandler := handler.NewOperatorHandler(decisionService, signalService)
 	dashboardHandler := handler.NewDashboardHandler(decisionService, complexityCalculator, ethicalPrimeCalculator)
+	approvalHandler := handler.NewApprovalHandler(approvalService)
+	keepaliveHandler := handler.NewKeepaliveHandler(keepaliveService)
+	
+	// Start background monitor for rollback checks
+	monitor := gate.NewBackgroundMonitor(rollbackService)
+	monitorCtx, monitorCancel := context.WithCancel(context.Background())
+	defer monitorCancel()
+	go monitor.Start(monitorCtx)
 
 	// Setup router
-	router := setupRouter(crowdHandler, staffHandler, infrastructureHandler, emergencyHandler, operatorHandler, dashboardHandler, rateLimiter)
+	router := setupRouter(crowdHandler, staffHandler, infrastructureHandler, emergencyHandler, operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler, rateLimiter)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -117,6 +134,8 @@ func setupRouter(
 	emergencyHandler *handler.EmergencyHandler,
 	operatorHandler *handler.OperatorHandler,
 	dashboardHandler *handler.DashboardHandler,
+	approvalHandler *handler.ApprovalHandler,
+	keepaliveHandler *handler.KeepaliveHandler,
 	rateLimiter *middleware.RateLimiter,
 ) *gin.Engine {
 	router := gin.Default()
@@ -173,6 +192,22 @@ func setupRouter(
 		dashboard := v1.Group("/dashboard")
 		{
 			dashboard.GET("/zones/:zone_id", dashboardHandler.GetDashboardData)
+		}
+		
+		// Approval endpoints
+		approvals := v1.Group("/approvals")
+		{
+			approvals.POST("", approvalHandler.CreateApprovalRequest)
+			approvals.GET("/:id", approvalHandler.GetApprovalRequest)
+			approvals.POST("/:id/approve", approvalHandler.Approve)
+			approvals.POST("/:id/reject", approvalHandler.Reject)
+		}
+		
+		// Keepalive endpoints
+		keepalive := v1.Group("/keepalive")
+		{
+			keepalive.POST("", keepaliveHandler.SendKeepalive)
+			keepalive.GET("/:action_id/status", keepaliveHandler.CheckKeepaliveStatus)
 		}
 	}
 
