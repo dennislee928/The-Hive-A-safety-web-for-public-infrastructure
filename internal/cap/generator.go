@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/erh-safety-system/poc/internal/decision"
 	"github.com/erh-safety-system/poc/internal/model"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
