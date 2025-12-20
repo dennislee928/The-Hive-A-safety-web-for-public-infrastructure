@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/erh-safety-system/poc/internal/cap"
-	"github.com/erh-safety-system/poc/internal/dto"
 	"github.com/erh-safety-system/poc/internal/vo"
 	"github.com/gin-gonic/gin"
 )
@@ -118,7 +118,7 @@ func (h *CAPHandler) GetCAPMessagesByZone(c *gin.Context) {
 	
 	var limit int
 	if limitStr := c.Query("limit"); limitStr != "" {
-		fmt.Sscanf(limitStr, "%d", &limit)
+		_, _ = fmt.Sscanf(limitStr, "%d", &limit)
 	}
 	
 	records, err := h.capService.GetCAPMessagesByZone(c.Request.Context(), zoneID, limit)

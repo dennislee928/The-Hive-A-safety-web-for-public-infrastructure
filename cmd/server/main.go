@@ -78,7 +78,7 @@ func main() {
 	rollbackService := gate.NewRollbackService(database.DB, decisionService, keepaliveService, ttlManager)
 	
 	// Initialize CAP services
-	capGenerator := cap.NewCAPGenerator(database.DB, decisionService)
+	capGenerator := cap.NewCAPGenerator(database.DB)
 	capSigner := cap.NewSignerFromKey(nil) // TODO: load from config
 	capConsistencyChecker := cap.NewConsistencyChecker(database.DB, decisionService)
 	capTranslator := cap.NewTranslator()
@@ -114,6 +114,7 @@ func main() {
 	dashboardHandler := handler.NewDashboardHandler(decisionService, complexityCalculator, ethicalPrimeCalculator)
 	approvalHandler := handler.NewApprovalHandler(approvalService)
 	keepaliveHandler := handler.NewKeepaliveHandler(keepaliveService)
+	capHandler := handler.NewCAPHandler(capService)
 	
 	// Start background monitor for rollback checks
 	monitor := gate.NewBackgroundMonitor(rollbackService)

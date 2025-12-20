@@ -14,15 +14,13 @@ import (
 
 // CAPGenerator generates CAP messages
 type CAPGenerator struct {
-	db            *gorm.DB
-	decisionService *decision.DecisionService
+	db *gorm.DB
 }
 
 // NewCAPGenerator creates a new CAP generator
-func NewCAPGenerator(db *gorm.DB, decisionService *decision.DecisionService) *CAPGenerator {
+func NewCAPGenerator(db *gorm.DB) *CAPGenerator {
 	return &CAPGenerator{
-		db:              db,
-		decisionService: decisionService,
+		db: db,
 	}
 }
 
