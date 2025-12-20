@@ -6,7 +6,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/erh-safety-system/poc/internal/model"
 	"gorm.io/gorm"
 )
 
