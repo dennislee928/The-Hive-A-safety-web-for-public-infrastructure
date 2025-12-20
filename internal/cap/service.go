@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/erh-safety-system/poc/internal/decision"
 	"github.com/erh-safety-system/poc/internal/gate"
 	"github.com/erh-safety-system/poc/internal/route1"
 	"gorm.io/gorm"
