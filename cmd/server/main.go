@@ -50,6 +50,8 @@ func main() {
 		&route2.Device{},
 		&route2.AssistanceRequest{},
 		&route2.Feedback{},
+		&erh.MitigationMeasure{},
+		&erh.MetricsRecord{},
 	); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -73,7 +75,16 @@ func main() {
 	// Initialize ERH services
 	complexityCalculator := erh.NewComplexityCalculator()
 	ethicalPrimeCalculator := erh.NewEthicalPrimeCalculator(database.DB)
-	_ = erh.NewBreakpointDetector(database.DB) // TODO: use in background monitoring
+	breakpointDetector := erh.NewBreakpointDetector(database.DB)
+	mitigationManager := erh.NewMitigationManager(database.DB)
+	metricsCollector := erh.NewMetricsCollector(database.DB)
+	reportGenerator := erh.NewReportGenerator(
+		database.DB,
+		complexityCalculator,
+		ethicalPrimeCalculator,
+		breakpointDetector,
+		metricsCollector,
+	)
 
 	// Initialize gate services
 	approvalService := gate.NewApprovalService(database.DB)
@@ -117,6 +128,14 @@ func main() {
 	operatorHandler := handler.NewOperatorHandler(decisionService, signalService)
 	dashboardHandler := handler.NewDashboardHandler(decisionService, complexityCalculator, ethicalPrimeCalculator)
 	approvalHandler := handler.NewApprovalHandler(approvalService)
+	erhHandler := handler.NewERHHandler(
+		complexityCalculator,
+		ethicalPrimeCalculator,
+		breakpointDetector,
+		mitigationManager,
+		metricsCollector,
+		reportGenerator,
+	)
 	keepaliveHandler := handler.NewKeepaliveHandler(keepaliveService)
 	capHandler := handler.NewCAPHandler(capService)
 	
@@ -144,7 +163,7 @@ func main() {
 	router := setupRouter(
 		crowdHandler, staffHandler, infrastructureHandler, emergencyHandler,
 		operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler,
-		capHandler, route2Handler, deviceAuthService, rateLimiter,
+		capHandler, route2Handler, erhHandler, deviceAuthService, rateLimiter,
 	)
 
 	// Create HTTP server
@@ -190,10 +209,11 @@ func setupRouter(
 	dashboardHandler *handler.DashboardHandler,
 	approvalHandler *handler.ApprovalHandler,
 	keepaliveHandler *handler.KeepaliveHandler,
-	capHandler *handler.CAPHandler,
-	route2Handler *handler.Route2Handler,
-	deviceAuthService *route2.DeviceAuthService,
-	rateLimiter *middleware.RateLimiter,
+		capHandler *handler.CAPHandler,
+		route2Handler *handler.Route2Handler,
+		erhHandler *handler.ERHHandler,
+		deviceAuthService *route2.DeviceAuthService,
+		rateLimiter *middleware.RateLimiter,
 ) *gin.Engine {
 	router := gin.Default()
 
@@ -289,6 +309,16 @@ func setupRouter(
 				route2Auth.POST("/assistance", route2Handler.RequestAssistance)
 				route2Auth.POST("/feedback", route2Handler.SubmitFeedback)
 			}
+		}
+		
+		// ERH governance endpoints
+		erh := v1.Group("/erh")
+		{
+			erh.GET("/status/:zone_id", erhHandler.GetERHStatus)
+			erh.GET("/metrics/:zone_id/history", erhHandler.GetMetricsHistory)
+			erh.GET("/metrics/:zone_id/trends", erhHandler.GetMetricsTrends)
+			erh.GET("/reports/:zone_id/:report_type", erhHandler.GenerateReport)
+			erh.POST("/mitigations", erhHandler.ActivateMitigation)
 		}
 	}
 
