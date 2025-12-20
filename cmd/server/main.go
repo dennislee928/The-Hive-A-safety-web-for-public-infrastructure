@@ -21,6 +21,8 @@ import (
 	"github.com/erh-safety-system/poc/internal/decision"
 	"github.com/erh-safety-system/poc/internal/erh"
 	"github.com/erh-safety-system/poc/internal/gate"
+	"github.com/erh-safety-system/poc/internal/cap"
+	"github.com/erh-safety-system/poc/internal/route1"
 	"github.com/gin-gonic/gin"
 )
 
@@ -43,6 +45,7 @@ func main() {
 		&decision.DecisionStateRecord{},
 		&model.ApprovalRequest{},
 		&model.KeepaliveSession{},
+		&cap.CAPMessageRecord{},
 	); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -74,6 +77,34 @@ func main() {
 	ttlManager := gate.NewTTLManager(database.DB)
 	rollbackService := gate.NewRollbackService(database.DB, decisionService, keepaliveService, ttlManager)
 	
+	// Initialize CAP services
+	capGenerator := cap.NewCAPGenerator(database.DB, decisionService)
+	capSigner := cap.NewSignerFromKey(nil) // TODO: load from config
+	capConsistencyChecker := cap.NewConsistencyChecker(database.DB, decisionService)
+	capTranslator := cap.NewTranslator()
+	
+	// Initialize Route 1 adapters
+	cellBroadcastAdapter := route1.NewCellBroadcastAdapter()
+	smsAdapter := route1.NewSMSAdapter()
+	signagePAAdapter := route1.NewSignagePAAdapter()
+	webSocialAdapter := route1.NewWebSocialAdapter()
+	route1Service := route1.NewRoute1Service(
+		cellBroadcastAdapter,
+		smsAdapter,
+		signagePAAdapter,
+		webSocialAdapter,
+	)
+	
+	capService := cap.NewCAPService(
+		database.DB,
+		capGenerator,
+		capSigner,
+		capConsistencyChecker,
+		capTranslator,
+		route1Service,
+		approvalService,
+	)
+	
 	// Initialize handlers
 	crowdHandler := handler.NewCrowdHandler(signalService, rateLimiter, trustScorer)
 	staffHandler := handler.NewStaffHandler(signalService)
@@ -91,7 +122,7 @@ func main() {
 	go monitor.Start(monitorCtx)
 
 	// Setup router
-	router := setupRouter(crowdHandler, staffHandler, infrastructureHandler, emergencyHandler, operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler, rateLimiter)
+	router := setupRouter(crowdHandler, staffHandler, infrastructureHandler, emergencyHandler, operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler, capHandler, rateLimiter)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -136,6 +167,7 @@ func setupRouter(
 	dashboardHandler *handler.DashboardHandler,
 	approvalHandler *handler.ApprovalHandler,
 	keepaliveHandler *handler.KeepaliveHandler,
+	capHandler *handler.CAPHandler,
 	rateLimiter *middleware.RateLimiter,
 ) *gin.Engine {
 	router := gin.Default()
@@ -208,6 +240,14 @@ func setupRouter(
 		{
 			keepalive.POST("", keepaliveHandler.SendKeepalive)
 			keepalive.GET("/:action_id/status", keepaliveHandler.CheckKeepaliveStatus)
+		}
+		
+		// CAP message endpoints
+		cap := v1.Group("/cap")
+		{
+			cap.POST("/generate", capHandler.GenerateAndPublish)
+			cap.GET("/:identifier", capHandler.GetCAPMessage)
+			cap.GET("/zone/:zone_id", capHandler.GetCAPMessagesByZone)
 		}
 	}
 
