@@ -23,6 +23,7 @@ import (
 	"github.com/erh-safety-system/poc/internal/gate"
 	"github.com/erh-safety-system/poc/internal/cap"
 	"github.com/erh-safety-system/poc/internal/route1"
+	"github.com/erh-safety-system/poc/internal/route2"
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,6 +47,9 @@ func main() {
 		&model.ApprovalRequest{},
 		&model.KeepaliveSession{},
 		&cap.CAPMessageRecord{},
+		&route2.Device{},
+		&route2.AssistanceRequest{},
+		&route2.Feedback{},
 	); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -116,6 +120,20 @@ func main() {
 	keepaliveHandler := handler.NewKeepaliveHandler(keepaliveService)
 	capHandler := handler.NewCAPHandler(capService)
 	
+	// Initialize Route 2 services
+	deviceAuthService := route2.NewDeviceAuthService(database.DB)
+	pushService := route2.NewPushNotificationService()
+	guidanceEngine := route2.NewGuidanceEngine(database.DB, decisionService, capService)
+	assistanceService := route2.NewAssistanceService(database.DB)
+	feedbackService := route2.NewFeedbackService(database.DB)
+	route2Handler := handler.NewRoute2Handler(
+		guidanceEngine,
+		pushService,
+		deviceAuthService,
+		assistanceService,
+		feedbackService,
+	)
+	
 	// Start background monitor for rollback checks
 	monitor := gate.NewBackgroundMonitor(rollbackService)
 	monitorCtx, monitorCancel := context.WithCancel(context.Background())
@@ -123,7 +141,11 @@ func main() {
 	go monitor.Start(monitorCtx)
 
 	// Setup router
-	router := setupRouter(crowdHandler, staffHandler, infrastructureHandler, emergencyHandler, operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler, capHandler, rateLimiter)
+	router := setupRouter(
+		crowdHandler, staffHandler, infrastructureHandler, emergencyHandler,
+		operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler,
+		capHandler, route2Handler, deviceAuthService, rateLimiter,
+	)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -169,6 +191,8 @@ func setupRouter(
 	approvalHandler *handler.ApprovalHandler,
 	keepaliveHandler *handler.KeepaliveHandler,
 	capHandler *handler.CAPHandler,
+	route2Handler *handler.Route2Handler,
+	deviceAuthService *route2.DeviceAuthService,
 	rateLimiter *middleware.RateLimiter,
 ) *gin.Engine {
 	router := gin.Default()
@@ -249,6 +273,22 @@ func setupRouter(
 			cap.POST("/generate", capHandler.GenerateAndPublish)
 			cap.GET("/:identifier", capHandler.GetCAPMessage)
 			cap.GET("/zone/:zone_id", capHandler.GetCAPMessagesByZone)
+		}
+		
+		// Route 2 App endpoints
+		route2 := v1.Group("/route2")
+		{
+			// Device registration (no auth required)
+			route2.POST("/devices/register", route2Handler.RegisterDevice)
+			
+			// Authenticated endpoints
+			route2Auth := route2.Group("", middleware.Route2AuthMiddleware(deviceAuthService))
+			{
+				route2Auth.POST("/devices/:device_id/push-token", route2Handler.RegisterPushToken)
+				route2Auth.GET("/guidance", route2Handler.GetGuidance)
+				route2Auth.POST("/assistance", route2Handler.RequestAssistance)
+				route2Auth.POST("/feedback", route2Handler.SubmitFeedback)
+			}
 		}
 	}
 
