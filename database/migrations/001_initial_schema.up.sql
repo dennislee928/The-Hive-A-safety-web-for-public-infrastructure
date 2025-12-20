@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS approval_requests (
     expires_at TIMESTAMP,
     CONSTRAINT chk_approval_action_type CHECK (action_type IN ('D3', 'D4', 'D5')),
     CONSTRAINT chk_approval_zone_id CHECK (zone_id IN ('Z1', 'Z2', 'Z3', 'Z4')),
-    CONSTRAINT chk_approval_status CHECK (status IN ('pending', 'approved', 'rejected', 'expired'))
+    approved_at TIMESTAMP,
+    CONSTRAINT chk_approval_status CHECK (status IN ('pending', 'approved', 'rejected', 'expired', 'rolled_back'))
 );
 
 CREATE INDEX idx_approval_requests_status ON approval_requests(status, expires_at);
@@ -90,6 +91,8 @@ CREATE TABLE IF NOT EXISTS keepalive_sessions (
     approver1_last_keepalive TIMESTAMP,
     approver2_last_keepalive TIMESTAMP,
     approver3_last_keepalive TIMESTAMP,
+    keepalive_interval INT DEFAULT 60,
+    keepalive_timeout INT DEFAULT 120,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
