@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/erh-safety-system/poc/internal/dto"
@@ -19,7 +20,7 @@ type CrowdHandler struct {
 
 // TrustScorerInterface defines the interface for trust scoring
 type TrustScorerInterface interface {
-	CalculateTrustScore(deviceID string, report *dto.CrowdReportRequest) (float64, error)
+	CalculateTrustScore(ctx context.Context, deviceID string, report *dto.CrowdReportRequest) (float64, error)
 }
 
 // NewCrowdHandler creates a new crowd handler
@@ -53,7 +54,7 @@ func (h *CrowdHandler) SubmitReport(c *gin.Context) {
 	}
 	
 	// Calculate trust score
-	trustScore, err := h.trustScorer.CalculateTrustScore(deviceID, &req)
+	trustScore, err := h.trustScorer.CalculateTrustScore(c.Request.Context(), deviceID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, vo.ErrorResponse{
 			Message: "Failed to calculate trust score",

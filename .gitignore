@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+server
 
 # Test binary, built with `go test -c`
 *.test
@@ -47,4 +48,3 @@ build/
 # Docker volumes
 postgres_data/
 redis_data/
-
