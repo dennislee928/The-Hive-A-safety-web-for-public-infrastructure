@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/erh-safety-system/poc/internal/config"
 	"gorm.io/driver/postgres"
