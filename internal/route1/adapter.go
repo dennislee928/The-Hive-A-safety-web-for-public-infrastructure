@@ -2,6 +2,7 @@ package route1
 
 import (
 	"context"
+	"fmt"
 )
 
 // CAPMessageInterface defines the interface for CAP message (to avoid circular dependency)
@@ -63,7 +64,7 @@ func NewRoute1Service(adapters ...Adapter) *Route1Service {
 }
 
 // Publish publishes CAP message to all available channels
-func (s *Route1Service) Publish(ctx context.Context, capMsg *cap.CAPMessage) error {
+func (s *Route1Service) Publish(ctx context.Context, capMsg CAPMessageInterface) error {
 	// Publish to all available adapters
 	var lastErr error
 	successCount := 0

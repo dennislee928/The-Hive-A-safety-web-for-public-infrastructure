@@ -77,14 +77,15 @@ func (a *WebSocialAdapter) generateHTMLPage(capMsg CAPMessageInterface) string {
 }
 
 // generateSocialPosts generates platform-specific social media posts
-func (a *WebSocialAdapter) generateSocialPosts(capMsg *cap.CAPMessage) map[string]string {
+func (a *WebSocialAdapter) generateSocialPosts(capMsg CAPMessageInterface) map[string]string {
 	posts := make(map[string]string)
 	
-	if len(capMsg.Info) == 0 {
+	infoBlocks := capMsg.GetInfoBlocks()
+	if len(infoBlocks) == 0 {
 		return posts
 	}
 	
-	info := capMsg.Info[0]
+	info := infoBlocks[0]
 	
 	// Twitter/X (280 chars)
 	twitterPost := fmt.Sprintf("%s\n\n%s", info.Headline, info.Description)
@@ -104,12 +105,13 @@ func (a *WebSocialAdapter) generateSocialPosts(capMsg *cap.CAPMessage) map[strin
 }
 
 // generateBroadcastScript generates radio/TV broadcast script
-func (a *WebSocialAdapter) generateBroadcastScript(capMsg *cap.CAPMessage) string {
-	if len(capMsg.Info) == 0 {
+func (a *WebSocialAdapter) generateBroadcastScript(capMsg CAPMessageInterface) string {
+	infoBlocks := capMsg.GetInfoBlocks()
+	if len(infoBlocks) == 0 {
 		return ""
 	}
 	
-	info := capMsg.Info[0]
+	info := infoBlocks[0]
 	
 	// Combine for 30-60 second broadcast
 	script := fmt.Sprintf("Alert: %s. %s. Please follow these instructions: %s", 
