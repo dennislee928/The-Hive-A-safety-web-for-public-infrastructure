@@ -24,6 +24,7 @@ import (
 	"github.com/erh-safety-system/poc/internal/cap"
 	"github.com/erh-safety-system/poc/internal/route1"
 	"github.com/erh-safety-system/poc/internal/route2"
+	"github.com/erh-safety-system/poc/internal/audit"
 	"github.com/gin-gonic/gin"
 )
 
@@ -52,6 +53,8 @@ func main() {
 		&route2.Feedback{},
 		&erh.MitigationMeasure{},
 		&erh.MetricsRecord{},
+		&audit.AuditLog{},
+		&audit.EvidenceRecord{},
 	); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -139,6 +142,13 @@ func main() {
 	keepaliveHandler := handler.NewKeepaliveHandler(keepaliveService)
 	capHandler := handler.NewCAPHandler(capService)
 	
+	// Initialize audit services
+	auditLogger := audit.NewAuditLogger(database.DB)
+	evidenceArchive := audit.NewEvidenceArchive(database.DB)
+	auditArchiver := audit.NewArchiver(database.DB, evidenceArchive)
+	auditHandler := handler.NewAuditHandler(auditLogger, evidenceArchive)
+	_ = auditArchiver // TODO: integrate with decision/approval flows
+	
 	// Initialize Route 2 services
 	deviceAuthService := route2.NewDeviceAuthService(database.DB)
 	pushService := route2.NewPushNotificationService()
@@ -163,7 +173,8 @@ func main() {
 	router := setupRouter(
 		crowdHandler, staffHandler, infrastructureHandler, emergencyHandler,
 		operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler,
-		capHandler, route2Handler, erhHandler, deviceAuthService, rateLimiter,
+		capHandler, route2Handler, erhHandler, auditHandler, auditLogger,
+		deviceAuthService, rateLimiter,
 	)
 
 	// Create HTTP server
@@ -212,10 +223,15 @@ func setupRouter(
 		capHandler *handler.CAPHandler,
 		route2Handler *handler.Route2Handler,
 		erhHandler *handler.ERHHandler,
+		auditHandler *handler.AuditHandler,
+		auditLogger *audit.AuditLogger,
 		deviceAuthService *route2.DeviceAuthService,
 		rateLimiter *middleware.RateLimiter,
 ) *gin.Engine {
 	router := gin.Default()
+	
+	// Apply audit middleware to all routes (except health check)
+	router.Use(audit.AuditMiddleware(auditLogger))
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -319,6 +335,16 @@ func setupRouter(
 			erh.GET("/metrics/:zone_id/trends", erhHandler.GetMetricsTrends)
 			erh.GET("/reports/:zone_id/:report_type", erhHandler.GenerateReport)
 			erh.POST("/mitigations", erhHandler.ActivateMitigation)
+		}
+		
+		// Audit and evidence endpoints
+		auditGroup := v1.Group("/audit")
+		{
+			auditGroup.GET("/logs", auditHandler.GetAuditLogs)
+			auditGroup.GET("/verify-integrity", auditHandler.VerifyIntegrity)
+			auditGroup.GET("/evidence", auditHandler.ListEvidence)
+			auditGroup.GET("/evidence/:evidence_id", auditHandler.GetEvidence)
+			auditGroup.POST("/evidence/archive", auditHandler.ArchiveEvidence)
 		}
 	}
 
