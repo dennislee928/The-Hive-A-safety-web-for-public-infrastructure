@@ -1,15 +1,14 @@
-name: CI Pipeline
+#name: CI Pipeline
+#
+#on:
+#    push:
+#        branches: ["main", "develop"]
+#    pull_request:
+#        branches: ["main", "develop"]
 
-on:
-  push:
-    branches: ["main", "develop"]
-  pull_request:
-    branches: ["main", "develop"]
-
-permissions:
-  contents: read
-  packages: write
-
+#permissions:
+#    contents: read
+#       packages: write
 # Note: This workflow serves as documentation for the CI pipeline.
 # Individual workflows will be triggered independently based on their own trigger conditions:
 # - go-tests.yml: Go tests and linting

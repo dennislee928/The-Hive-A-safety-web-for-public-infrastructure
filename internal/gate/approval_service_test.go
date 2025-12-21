@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/erh-safety-system/poc/internal/model"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -15,8 +16,10 @@ func setupGateTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
 	
-	// Note: In real implementation, would use actual model structs
-	// For now, we'll just test the logic
+	// Auto migrate the approval_requests table
+	if err := db.AutoMigrate(&model.ApprovalRequest{}); err != nil {
+		t.Fatalf("Failed to auto migrate: %v", err)
+	}
 	
 	return db
 }
