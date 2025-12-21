@@ -159,17 +159,17 @@ jobs:
                     if ! grep -q "^platform :ios" Podfile; then
                       echo "platform :ios, '12.0'" > Podfile.tmp && cat Podfile >> Podfile.tmp && mv Podfile.tmp Podfile
                     fi
-                    if ! grep -q "post_install do" Podfile; then
-                      echo "" >> Podfile
-                      echo "post_install do |installer|" >> Podfile
-                      echo "  installer.pods_project.targets.each do |target|" >> Podfile
-                      echo "    flutter_additional_ios_build_settings(target)" >> Podfile
-                      echo "    target.build_configurations.each do |config|" >> Podfile
-                      echo "      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'" >> Podfile
-                      echo "    end" >> Podfile
-                      echo "  end" >> Podfile
-                      echo "end" >> Podfile
-                    fi
+                    python3 << 'PYTHON_EOF'
+import re
+with open('Podfile', 'r') as f:
+    content = f.read()
+if 'IPHONEOS_DEPLOYMENT_TARGET' not in content or content.count("config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'") == 0:
+    pattern = r"(target\.build_configurations\.each do \|config\|)"
+    replacement = r"\1\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'"
+    content = re.sub(pattern, replacement, content)
+    with open('Podfile', 'w') as f:
+        f.write(content)
+PYTHON_EOF
                   fi
 
             - name: Install iOS dependencies

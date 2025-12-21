@@ -62,8 +62,14 @@ jobs:
 
             - name: Build and start server
               env:
-                  DATABASE_URL: postgres://test:test@localhost:5432/erh_safety_test?sslmode=disable
-                  REDIS_URL: redis://localhost:6379
+                  DB_HOST: localhost
+                  DB_PORT: "5432"
+                  DB_USER: test
+                  DB_PASSWORD: test
+                  DB_NAME: erh_safety_test
+                  DB_SSLMODE: disable
+                  REDIS_HOST: localhost
+                  REDIS_PORT: "6379"
               run: |
                   go mod download
                   go build -o server ./cmd/server
