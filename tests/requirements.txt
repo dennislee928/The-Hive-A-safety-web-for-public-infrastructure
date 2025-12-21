@@ -1,5 +1,5 @@
 robotframework==7.1.1
-robotframework-requests==0.9.9
+robotframework-requests==0.9.7
 robotframework-jsonlibrary==0.6.2
 robotframework-datetime-tz==2.1.0
 requests==2.31.0

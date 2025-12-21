@@ -259,12 +259,16 @@ export default function CAPPage() {
                   setShowCreateForm(false);
                   setFormData({
                     zone_id: 'Z1',
-                    message_type: 'Alert',
+                    languages: ['zh-TW'],
+                    event_type: 'Safety',
                     severity: 'Severe',
                     urgency: 'Immediate',
-                    headline: '',
-                    description: '',
-                    instruction: '',
+                    certainty: 'Likely',
+                    headline: { 'zh-TW': '' },
+                    description: { 'zh-TW': '' },
+                    instruction: { 'zh-TW': '' },
+                    contact: '',
+                    ttl_minutes: 60,
                   });
                 }}
                 className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
