@@ -4,7 +4,6 @@
 *.dll
 *.so
 *.dylib
-server
 
 # Test binary, built with `go test -c`
 *.test
@@ -18,33 +17,33 @@ vendor/
 # Go workspace file
 go.work
 
-# IDE files
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# Environment variables
-.env
-.env.local
-
-# Database
-*.db
-*.sqlite
-
-# Logs
-*.log
-
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Build output
+# Build artifacts
 bin/
 dist/
-build/
 
-# Docker volumes
-postgres_data/
-redis_data/
+# Test results
+results/
+*.log
+*.html
+*.xml
+
+# Environment files
+.env
+.env.local
+
+# Robot Framework results
+tests/results/
+tests/*.log
+tests/*.html
+tests/*.xml

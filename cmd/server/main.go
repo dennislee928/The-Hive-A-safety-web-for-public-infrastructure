@@ -23,6 +23,8 @@ import (
 	"github.com/erh-safety-system/poc/internal/gate"
 	"github.com/erh-safety-system/poc/internal/cap"
 	"github.com/erh-safety-system/poc/internal/route1"
+	"github.com/erh-safety-system/poc/internal/route2"
+	"github.com/erh-safety-system/poc/internal/audit"
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,6 +48,13 @@ func main() {
 		&model.ApprovalRequest{},
 		&model.KeepaliveSession{},
 		&cap.CAPMessageRecord{},
+		&route2.Device{},
+		&route2.AssistanceRequest{},
+		&route2.Feedback{},
+		&erh.MitigationMeasure{},
+		&erh.MetricsRecord{},
+		&audit.AuditLog{},
+		&audit.EvidenceRecord{},
 	); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -69,7 +78,16 @@ func main() {
 	// Initialize ERH services
 	complexityCalculator := erh.NewComplexityCalculator()
 	ethicalPrimeCalculator := erh.NewEthicalPrimeCalculator(database.DB)
-	_ = erh.NewBreakpointDetector(database.DB) // TODO: use in background monitoring
+	breakpointDetector := erh.NewBreakpointDetector(database.DB)
+	mitigationManager := erh.NewMitigationManager(database.DB)
+	metricsCollector := erh.NewMetricsCollector(database.DB)
+	reportGenerator := erh.NewReportGenerator(
+		database.DB,
+		complexityCalculator,
+		ethicalPrimeCalculator,
+		breakpointDetector,
+		metricsCollector,
+	)
 
 	// Initialize gate services
 	approvalService := gate.NewApprovalService(database.DB)
@@ -113,8 +131,37 @@ func main() {
 	operatorHandler := handler.NewOperatorHandler(decisionService, signalService)
 	dashboardHandler := handler.NewDashboardHandler(decisionService, complexityCalculator, ethicalPrimeCalculator)
 	approvalHandler := handler.NewApprovalHandler(approvalService)
+	erhHandler := handler.NewERHHandler(
+		complexityCalculator,
+		ethicalPrimeCalculator,
+		breakpointDetector,
+		mitigationManager,
+		metricsCollector,
+		reportGenerator,
+	)
 	keepaliveHandler := handler.NewKeepaliveHandler(keepaliveService)
 	capHandler := handler.NewCAPHandler(capService)
+	
+	// Initialize audit services
+	auditLogger := audit.NewAuditLogger(database.DB)
+	evidenceArchive := audit.NewEvidenceArchive(database.DB)
+	auditArchiver := audit.NewArchiver(database.DB, evidenceArchive)
+	auditHandler := handler.NewAuditHandler(auditLogger, evidenceArchive)
+	_ = auditArchiver // TODO: integrate with decision/approval flows
+	
+	// Initialize Route 2 services
+	deviceAuthService := route2.NewDeviceAuthService(database.DB)
+	pushService := route2.NewPushNotificationService()
+	guidanceEngine := route2.NewGuidanceEngine(database.DB, decisionService, capService)
+	assistanceService := route2.NewAssistanceService(database.DB)
+	feedbackService := route2.NewFeedbackService(database.DB)
+	route2Handler := handler.NewRoute2Handler(
+		guidanceEngine,
+		pushService,
+		deviceAuthService,
+		assistanceService,
+		feedbackService,
+	)
 	
 	// Start background monitor for rollback checks
 	monitor := gate.NewBackgroundMonitor(rollbackService)
@@ -123,7 +170,12 @@ func main() {
 	go monitor.Start(monitorCtx)
 
 	// Setup router
-	router := setupRouter(crowdHandler, staffHandler, infrastructureHandler, emergencyHandler, operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler, capHandler, rateLimiter)
+	router := setupRouter(
+		crowdHandler, staffHandler, infrastructureHandler, emergencyHandler,
+		operatorHandler, dashboardHandler, approvalHandler, keepaliveHandler,
+		capHandler, route2Handler, erhHandler, auditHandler, auditLogger,
+		deviceAuthService, rateLimiter,
+	)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -168,10 +220,18 @@ func setupRouter(
 	dashboardHandler *handler.DashboardHandler,
 	approvalHandler *handler.ApprovalHandler,
 	keepaliveHandler *handler.KeepaliveHandler,
-	capHandler *handler.CAPHandler,
-	rateLimiter *middleware.RateLimiter,
+		capHandler *handler.CAPHandler,
+		route2Handler *handler.Route2Handler,
+		erhHandler *handler.ERHHandler,
+		auditHandler *handler.AuditHandler,
+		auditLogger *audit.AuditLogger,
+		deviceAuthService *route2.DeviceAuthService,
+		rateLimiter *middleware.RateLimiter,
 ) *gin.Engine {
 	router := gin.Default()
+	
+	// Apply audit middleware to all routes (except health check)
+	router.Use(audit.AuditMiddleware(auditLogger))
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -249,6 +309,42 @@ func setupRouter(
 			cap.POST("/generate", capHandler.GenerateAndPublish)
 			cap.GET("/:identifier", capHandler.GetCAPMessage)
 			cap.GET("/zone/:zone_id", capHandler.GetCAPMessagesByZone)
+		}
+		
+		// Route 2 App endpoints
+		route2 := v1.Group("/route2")
+		{
+			// Device registration (no auth required)
+			route2.POST("/devices/register", route2Handler.RegisterDevice)
+			
+			// Authenticated endpoints
+			route2Auth := route2.Group("", middleware.Route2AuthMiddleware(deviceAuthService))
+			{
+				route2Auth.POST("/devices/:device_id/push-token", route2Handler.RegisterPushToken)
+				route2Auth.GET("/guidance", route2Handler.GetGuidance)
+				route2Auth.POST("/assistance", route2Handler.RequestAssistance)
+				route2Auth.POST("/feedback", route2Handler.SubmitFeedback)
+			}
+		}
+		
+		// ERH governance endpoints
+		erh := v1.Group("/erh")
+		{
+			erh.GET("/status/:zone_id", erhHandler.GetERHStatus)
+			erh.GET("/metrics/:zone_id/history", erhHandler.GetMetricsHistory)
+			erh.GET("/metrics/:zone_id/trends", erhHandler.GetMetricsTrends)
+			erh.GET("/reports/:zone_id/:report_type", erhHandler.GenerateReport)
+			erh.POST("/mitigations", erhHandler.ActivateMitigation)
+		}
+		
+		// Audit and evidence endpoints
+		auditGroup := v1.Group("/audit")
+		{
+			auditGroup.GET("/logs", auditHandler.GetAuditLogs)
+			auditGroup.GET("/verify-integrity", auditHandler.VerifyIntegrity)
+			auditGroup.GET("/evidence", auditHandler.ListEvidence)
+			auditGroup.GET("/evidence/:evidence_id", auditHandler.GetEvidence)
+			auditGroup.POST("/evidence/archive", auditHandler.ArchiveEvidence)
 		}
 	}
 
