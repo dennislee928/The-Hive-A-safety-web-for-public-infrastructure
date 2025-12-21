@@ -56,7 +56,10 @@ jobs:
             - name: Create Flutter platform folders if missing
               working-directory: ./mobile_app
               run: |
-                  flutter create --platforms=android,ios --project-name erh_safety_app .
+                  # Check if android folder exists, if not create it
+                  if [ ! -d "android" ]; then
+                    flutter create --platforms=android --project-name erh_safety_app .
+                  fi
 
             - name: Verify Flutter setup
               working-directory: ./mobile_app
