@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:erh_safety_app/models/api_response.dart';
 import 'package:erh_safety_app/services/storage_service.dart';
@@ -45,7 +46,11 @@ class ApiService {
     try {
       final response = await _dio.post(
         '$route2Base/devices/register',
-        data: {'device_id': deviceId},
+        data: {
+          'device_id': deviceId,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+          'app_version': '1.0.0', // TODO: Get from package info
+        },
       );
       return ApiResponse.success(response.data);
     } on DioException catch (e) {

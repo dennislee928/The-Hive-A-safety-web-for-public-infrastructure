@@ -11,20 +11,20 @@ import 'services/storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase (optional, for push notifications)
   try {
     await Firebase.initializeApp();
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
-  
+
   // Initialize storage service
   await StorageService.init();
-  
+
   // Initialize API service
   ApiService.init();
-  
+
   runApp(const ErhSafetyApp());
 }
 
@@ -64,4 +64,3 @@ class ErhSafetyApp extends StatelessWidget {
     );
   }
 }
-
