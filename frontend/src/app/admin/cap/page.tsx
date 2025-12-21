@@ -12,12 +12,16 @@ export default function CAPPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({
     zone_id: 'Z1',
-    message_type: 'Alert',
+    languages: ['zh-TW'],
+    event_type: 'Safety',
     severity: 'Severe',
     urgency: 'Immediate',
-    headline: '',
-    description: '',
-    instruction: '',
+    certainty: 'Likely',
+    headline: { 'zh-TW': '' },
+    description: { 'zh-TW': '' },
+    instruction: { 'zh-TW': '' },
+    contact: '',
+    ttl_minutes: 60,
   });
 
   const zones = ['Z1', 'Z2', 'Z3', 'Z4'];
@@ -40,7 +44,7 @@ export default function CAPPage() {
   };
 
   const handleCreateCAP = async () => {
-    if (!formData.headline.trim() || !formData.description.trim()) {
+    if (!formData.headline['zh-TW']?.trim() || !formData.description['zh-TW']?.trim()) {
       alert('請填寫標題和描述');
       return;
     }
@@ -52,12 +56,16 @@ export default function CAPPage() {
       setShowCreateForm(false);
       setFormData({
         zone_id: 'Z1',
-        message_type: 'Alert',
+        languages: ['zh-TW'],
+        event_type: 'Safety',
         severity: 'Severe',
         urgency: 'Immediate',
-        headline: '',
-        description: '',
-        instruction: '',
+        certainty: 'Likely',
+        headline: { 'zh-TW': '' },
+        description: { 'zh-TW': '' },
+        instruction: { 'zh-TW': '' },
+        contact: '',
+        ttl_minutes: 60,
       });
       fetchCAPMessages();
     } catch (err: any) {
@@ -158,12 +166,42 @@ export default function CAPPage() {
                 </select>
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">事件類型</label>
+                <select
+                  value={formData.event_type}
+                  onChange={(e) => setFormData({ ...formData, event_type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Safety">安全</option>
+                  <option value="Security">保安</option>
+                  <option value="Fire">火災</option>
+                  <option value="Weather">天氣</option>
+                  <option value="Transport">交通</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">確定性</label>
+                <select
+                  value={formData.certainty}
+                  onChange={(e) => setFormData({ ...formData, certainty: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Observed">已觀察</option>
+                  <option value="Likely">可能</option>
+                  <option value="Possible">可能</option>
+                  <option value="Unlikely">不太可能</option>
+                  <option value="Unknown">未知</option>
+                </select>
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">標題 *</label>
               <input
                 type="text"
-                value={formData.headline}
-                onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                value={formData.headline['zh-TW'] || ''}
+                onChange={(e) => setFormData({ ...formData, headline: { 'zh-TW': e.target.value } })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -171,8 +209,8 @@ export default function CAPPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">描述 *</label>
               <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                value={formData.description['zh-TW'] || ''}
+                onChange={(e) => setFormData({ ...formData, description: { 'zh-TW': e.target.value } })}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
@@ -181,11 +219,32 @@ export default function CAPPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">指示（選填）</label>
               <textarea
-                value={formData.instruction}
-                onChange={(e) => setFormData({ ...formData, instruction: e.target.value })}
+                value={formData.instruction['zh-TW'] || ''}
+                onChange={(e) => setFormData({ ...formData, instruction: { 'zh-TW': e.target.value } })}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">聯絡資訊（選填）</label>
+                <input
+                  type="text"
+                  value={formData.contact}
+                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">TTL（分鐘）</label>
+                <input
+                  type="number"
+                  value={formData.ttl_minutes}
+                  onChange={(e) => setFormData({ ...formData, ttl_minutes: parseInt(e.target.value) || 60 })}
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <button

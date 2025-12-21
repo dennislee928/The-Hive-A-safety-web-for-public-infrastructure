@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Enable standalone output for Docker
+  output: 'standalone',
   // Separate client and admin apps using subpaths
   async rewrites() {
     return [

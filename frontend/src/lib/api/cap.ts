@@ -50,12 +50,16 @@ export const capApi = {
   // Generate and publish CAP message (admin only)
   generateAndPublish: async (data: {
     zone_id: string;
-    message_type: string;
-    severity: string;
+    languages: string[];
+    event_type: string;
     urgency: string;
-    headline: string;
-    description: string;
-    instruction?: string;
+    severity: string;
+    certainty: string;
+    headline: Record<string, string>;
+    description: Record<string, string>;
+    instruction: Record<string, string>;
+    contact?: string;
+    ttl_minutes: number;
   }): Promise<CAPMessage> => {
     const response = await apiClient.post<ApiResponse<CAPMessage>>('/cap/generate', data);
     return response.data.data!;

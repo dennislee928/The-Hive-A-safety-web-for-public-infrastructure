@@ -2,21 +2,30 @@ import { apiClient, ApiResponse } from '../api';
 
 export interface DashboardData {
   zone_id: string;
-  current_state: string;
-  complexity: {
-    x_signal: number;
-    x_depth: number;
-    x_context: number;
-    x_total: number;
-  };
+  decision_state: {
+    id: string;
+    zone_id: string;
+    current_state: string;
+    previous_state?: string;
+    reason?: string;
+    created_at: string;
+    updated_at: string;
+    signal_count?: number;
+    context_states?: number;
+  } | null;
+  complexity_metrics: {
+    signal_sources: number;
+    decision_depth: number;
+    context_states: number;
+    complexity_total: number;
+    complexity_level?: string;
+  } | null;
   ethical_primes: {
     fn_prime: number;
     fp_prime: number;
     bias_prime: number;
     integrity_prime: number;
-  };
-  recent_signals: any[];
-  active_mitigations: any[];
+  } | null;
 }
 
 export const dashboardApi = {
