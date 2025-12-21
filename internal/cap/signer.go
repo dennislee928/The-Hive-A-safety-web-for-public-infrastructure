@@ -53,7 +53,11 @@ func NewSigner(privateKeyPath string) (*Signer, error) {
 }
 
 // NewSignerFromKey creates a new signer from private key
+// If privateKey is nil, returns nil (signing will be skipped)
 func NewSignerFromKey(privateKey *rsa.PrivateKey) *Signer {
+	if privateKey == nil {
+		return nil
+	}
 	return &Signer{
 		privateKey: privateKey,
 		publicKey:  &privateKey.PublicKey,
