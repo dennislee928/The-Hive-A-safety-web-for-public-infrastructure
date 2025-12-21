@@ -61,6 +61,10 @@ jobs:
                     flutter create --platforms=android --project-name erh_safety_app .
                   fi
 
+            - name: Clean Flutter build cache
+              working-directory: ./mobile_app
+              run: flutter clean || true
+
             - name: Verify Flutter setup
               working-directory: ./mobile_app
               run: flutter doctor -v
@@ -146,11 +150,57 @@ jobs:
                     flutter create --platforms=ios --project-name erh_safety_app .
                   fi
 
+            - name: Update iOS Podfile for compatibility
+              working-directory: ./mobile_app
+              run: |
+                  if [ -f "ios/Podfile" ]; then
+                    cd ios
+                    # Use Python to reliably update Podfile
+                    python3 << 'PYTHON_SCRIPT'
+import re
+
+with open('Podfile', 'r') as f:
+    content = f.read()
+
+# Update or add platform version to 12.0
+if re.search(r'^platform :ios', content, re.MULTILINE):
+    content = re.sub(r'^platform :ios,?.*$', "platform :ios, '12.0'", content, flags=re.MULTILINE)
+elif re.search(r'^# platform :ios', content, re.MULTILINE):
+    content = re.sub(r'^# platform :ios,?.*$', "platform :ios, '12.0'", content, flags=re.MULTILINE)
+else:
+    # Add platform line after the first comment block or at the beginning
+    content = "platform :ios, '12.0'\n" + content
+
+# Add or update post_install hook
+if 'post_install do' not in content:
+    content += '''
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+    end
+  end
+end
+'''
+else:
+    # Update existing post_install to ensure deployment target is set
+    pattern = r"(target\.build_configurations\.each do \|config\|)(.*?)(\n\s+end)"
+    replacement = r"\1\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'\2\3"
+    if 'IPHONEOS_DEPLOYMENT_TARGET' not in content:
+        content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+with open('Podfile', 'w') as f:
+    f.write(content)
+PYTHON_SCRIPT
+                    cd ..
+                  fi
+
             - name: Install iOS dependencies
               working-directory: ./mobile_app/ios
               run: |
                   if [ -f "Podfile" ]; then
-                    pod install
+                    pod install --repo-update
                   else
                     echo "Podfile not found, iOS platform may not be properly created"
                     exit 1
