@@ -1,0 +1,91 @@
+name: Robot Framework Tests
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'tests/**'
+      - '.github/workflows/robot-tests.yml'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'tests/**'
+      - '.github/workflows/robot-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: erh_safety_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Robot Framework dependencies
+        working-directory: ./tests
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Build and start server
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/erh_safety_test?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+        run: |
+          go mod download
+          go build -o server ./cmd/server
+          ./server &
+          sleep 5
+          curl http://localhost:8080/health || exit 1
+      
+      - name: Run Robot Framework tests
+        working-directory: ./tests
+        env:
+          BASE_URL: http://localhost:8080
+        run: |
+          robot --outputdir results --include baseline Scenarios/Baseline_Test.robot || true
+          robot --outputdir results --include performance Scenarios/Performance_Test.robot || true
+          robot --outputdir results --include security Scenarios/Security_Test.robot || true
+        continue-on-error: true
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-test-results
+          path: tests/results/
+          retention-days: 30
+        if: always()
+
