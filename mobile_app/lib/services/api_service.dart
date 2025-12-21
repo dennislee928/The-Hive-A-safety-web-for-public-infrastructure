@@ -65,7 +65,7 @@ class ApiService {
         '$route2Base/devices/$deviceId/push-token',
         data: {'push_token': pushToken},
       );
-      return const ApiResponse.success(null);
+      return ApiResponse.success(null);
     } on DioException catch (e) {
       return ApiResponse.error(_handleError(e));
     }
