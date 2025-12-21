@@ -156,25 +156,25 @@ jobs:
                   if [ -f "ios/Podfile" ]; then
                     cd ios
                     python3 << 'SCRIPT_END'
-                  import re
-                  with open('Podfile', 'r') as f:
-                      content = f.read()
-                  if re.search(r'^platform :ios', content, re.MULTILINE):
-                      content = re.sub(r'^platform :ios,?.*$', "platform :ios, '12.0'", content, flags=re.MULTILINE)
-                  elif re.search(r'^# platform :ios', content, re.MULTILINE):
-                      content = re.sub(r'^# platform :ios,?.*$', "platform :ios, '12.0'", content, flags=re.MULTILINE)
-                  else:
-                      content = "platform :ios, '12.0'\n" + content
-                  if 'post_install do' not in content:
-                      content += "\npost_install do |installer|\n  installer.pods_project.targets.each do |target|\n    flutter_additional_ios_build_settings(target)\n    target.build_configurations.each do |config|\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'\n    end\n  end\nend\n"
-                  else:
-                      if 'IPHONEOS_DEPLOYMENT_TARGET' not in content:
-                          pattern = r"(target\.build_configurations\.each do \|config\|)(.*?)(\n\s+end)"
-                          replacement = r"\1\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'\2\3"
-                          content = re.sub(pattern, replacement, content, flags=re.DOTALL)
-                  with open('Podfile', 'w') as f:
-                      f.write(content)
-                  SCRIPT_END
+import re
+with open('Podfile', 'r') as f:
+    content = f.read()
+if re.search(r'^platform :ios', content, re.MULTILINE):
+    content = re.sub(r'^platform :ios,?.*$', "platform :ios, '12.0'", content, flags=re.MULTILINE)
+elif re.search(r'^# platform :ios', content, re.MULTILINE):
+    content = re.sub(r'^# platform :ios,?.*$', "platform :ios, '12.0'", content, flags=re.MULTILINE)
+else:
+    content = "platform :ios, '12.0'\n" + content
+if 'post_install do' not in content:
+    content += "\npost_install do |installer|\n  installer.pods_project.targets.each do |target|\n    flutter_additional_ios_build_settings(target)\n    target.build_configurations.each do |config|\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'\n    end\n  end\nend\n"
+else:
+    if 'IPHONEOS_DEPLOYMENT_TARGET' not in content:
+        pattern = r"(target\.build_configurations\.each do \|config\|)(.*?)(\n\s+end)"
+        replacement = r"\1\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'\2\3"
+        content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+with open('Podfile', 'w') as f:
+    f.write(content)
+SCRIPT_END
                     cd ..
                   fi
 
