@@ -52,7 +52,7 @@ if [ "$BUILD_TYPE" = "ios" ] || [ "$BUILD_TYPE" = "all" ]; then
     cd build/ios/iphoneos
     if [ -d "Runner.app" ]; then
       zip -r ios-release-device.zip Runner.app
-      sha256sum ios-release-device.zip > ios-release-device.zip.sha256
+      shasum -a 256 ios-release-device.zip > ios-release-device.zip.sha256 || sha256sum ios-release-device.zip > ios-release-device.zip.sha256
       echo -e "${GREEN}iOS build completed!${NC}"
       echo "Device file: build/ios/iphoneos/ios-release-device.zip"
     fi

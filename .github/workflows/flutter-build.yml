@@ -1,257 +1,256 @@
 name: Build Flutter App
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - 'mobile_app/**'
-      - '.github/workflows/flutter-build.yml'
-  pull_request:
-    branches: ["main"]
-    paths:
-      - 'mobile_app/**'
-      - '.github/workflows/flutter-build.yml'
-  workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Build type'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - android
-          - ios
+    push:
+        branches: ["main"]
+        paths:
+            - "mobile_app/**"
+            - ".github/workflows/flutter-build.yml"
+    pull_request:
+        branches: ["main"]
+        paths:
+            - "mobile_app/**"
+            - ".github/workflows/flutter-build.yml"
+    workflow_dispatch:
+        inputs:
+            build_type:
+                description: "Build type"
+                required: true
+                default: "all"
+                type: choice
+                options:
+                    - all
+                    - android
+                    - ios
 
 permissions:
-  contents: read
-  packages: write
+    contents: read
+    packages: write
 
 jobs:
-  build-android:
-    runs-on: ubuntu-latest
-    if: github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'android' || (github.event.inputs.build_type == '' && (github.event_name == 'push' || github.event_name == 'pull_request'))
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.22.0'
-          channel: 'stable'
-          cache: true
-      
-      - name: Install dependencies
-        working-directory: ./mobile_app
-        run: flutter pub get
-      
-      - name: Verify Flutter setup
-        working-directory: ./mobile_app
-        run: flutter doctor -v
-      
-      - name: Build APK (Debug)
-        working-directory: ./mobile_app
-        run: flutter build apk --debug
-      
-      - name: Build APK (Release)
-        working-directory: ./mobile_app
-        run: flutter build apk --release
-      
-      - name: Build AAB (Release)
-        working-directory: ./mobile_app
-        run: flutter build appbundle --release
-      
-      - name: Upload APK (Debug)
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-debug-apk
-          path: mobile_app/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 30
-      
-      - name: Upload APK (Release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-release-apk
-          path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
-      
-      - name: Upload AAB (Release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-release-aab
-          path: mobile_app/build/app/outputs/bundle/release/app-release.aab
-          retention-days: 30
-      
-      - name: Generate checksums
-        working-directory: ./mobile_app
-        run: |
-          cd build/app/outputs/flutter-apk
-          sha256sum app-debug.apk app-release.apk > checksums.txt
-          cd ../../bundle/release
-          sha256sum app-release.aab >> ../../../build/app/outputs/flutter-apk/checksums.txt
-          cat ../../app/outputs/flutter-apk/checksums.txt
-      
-      - name: Upload checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-checksums
-          path: mobile_app/build/app/outputs/flutter-apk/checksums.txt
-          retention-days: 30
+    build-android:
+        runs-on: ubuntu-latest
+        if: github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'android' || (github.event.inputs.build_type == '' && (github.event_name == 'push' || github.event_name == 'pull_request'))
 
-  build-ios:
-    runs-on: macos-latest
-    if: github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'ios' || (github.event.inputs.build_type == '' && (github.event_name == 'push' || github.event_name == 'pull_request'))
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.22.0'
-          channel: 'stable'
-          cache: true
-      
-      - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods
-          pod --version
-      
-      - name: Install dependencies
-        working-directory: ./mobile_app
-        run: flutter pub get
-      
-      - name: Install iOS dependencies
-        working-directory: ./mobile_app/ios
-        run: pod install
-      
-      - name: Verify Flutter setup
-        working-directory: ./mobile_app
-        run: flutter doctor -v
-      
-      - name: Build iOS (Debug)
-        working-directory: ./mobile_app
-        run: flutter build ios --debug --no-codesign
-      
-      - name: Build iOS (Release)
-        working-directory: ./mobile_app
-        run: flutter build ios --release --no-codesign
-      
-      - name: Build iOS IPA (requires code signing)
-        working-directory: ./mobile_app
-        run: |
-          flutter build ipa --release || echo "IPA build skipped (requires code signing)"
-        continue-on-error: true
-      
-      - name: Upload iOS Debug build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-debug-build
-          path: mobile_app/build/ios/iphoneos/Runner.app
-          retention-days: 30
-        continue-on-error: true
-      
-      - name: Upload iOS Release build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-release-build
-          path: mobile_app/build/ios/iphoneos/Runner.app
-          retention-days: 30
-        continue-on-error: true
-      
-      - name: Create iOS device file (for TestFlight/Distribution)
-        working-directory: ./mobile_app
-        run: |
-          if [ -d "build/ios/iphoneos" ]; then
-            cd build/ios/iphoneos
-            zip -r ios-release-device.zip Runner.app
-            cd ../../..
-          fi
-        continue-on-error: true
-      
-      - name: Upload iOS device file
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-release-device
-          path: mobile_app/build/ios/iphoneos/ios-release-device.zip
-          retention-days: 30
-        continue-on-error: true
-      
-      - name: Generate checksums
-        working-directory: ./mobile_app
-        run: |
-          cd build/ios/iphoneos
-          if [ -f "Runner.app" ]; then
-            find . -name "*.app" -o -name "*.zip" | xargs shasum -a 256 > checksums.txt || true
-            cat checksums.txt || true
-          fi
-        continue-on-error: true
-      
-      - name: Upload iOS checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-checksums
-          path: mobile_app/build/ios/iphoneos/checksums.txt
-          retention-days: 30
-        continue-on-error: true
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-  build-summary:
-    runs-on: ubuntu-latest
-    needs: [build-android, build-ios]
-    if: always()
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Download Android artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: android-release-apk
-          path: ./artifacts/android
-        continue-on-error: true
-      
-      - name: Download Android AAB
-        uses: actions/download-artifact@v4
-        with:
-          name: android-release-aab
-          path: ./artifacts/android
-        continue-on-error: true
-      
-      - name: Download iOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ios-release-device
-          path: ./artifacts/ios
-        continue-on-error: true
-      
-      - name: Create release summary
-        run: |
-          echo "# Build Summary" > build-summary.md
-          echo "" >> build-summary.md
-          echo "## Android" >> build-summary.md
-          echo "- APK (Release): Available in artifacts" >> build-summary.md
-          echo "- AAB (Release): Available in artifacts" >> build-summary.md
-          echo "" >> build-summary.md
-          echo "## iOS" >> build-summary.md
-          echo "- Device Build: Available in artifacts" >> build-summary.md
-          echo "" >> build-summary.md
-          echo "Build completed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> build-summary.md
-          cat build-summary.md
-      
-      - name: Upload build summary
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-summary
-          path: build-summary.md
-          retention-days: 30
+            - name: Set up JDK
+              uses: actions/setup-java@v4
+              with:
+                  distribution: "temurin"
+                  java-version: "17"
 
+            - name: Set up Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  flutter-version: "3.22.0"
+                  channel: "stable"
+                  cache: true
+
+            - name: Install dependencies
+              working-directory: ./mobile_app
+              run: flutter pub get
+
+            - name: Verify Flutter setup
+              working-directory: ./mobile_app
+              run: flutter doctor -v
+
+            - name: Build APK (Debug)
+              working-directory: ./mobile_app
+              run: flutter build apk --debug
+
+            - name: Build APK (Release)
+              working-directory: ./mobile_app
+              run: flutter build apk --release
+
+            - name: Build AAB (Release)
+              working-directory: ./mobile_app
+              run: flutter build appbundle --release
+
+            - name: Upload APK (Debug)
+              uses: actions/upload-artifact@v4
+              with:
+                  name: android-debug-apk
+                  path: mobile_app/build/app/outputs/flutter-apk/app-debug.apk
+                  retention-days: 30
+
+            - name: Upload APK (Release)
+              uses: actions/upload-artifact@v4
+              with:
+                  name: android-release-apk
+                  path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
+                  retention-days: 30
+
+            - name: Upload AAB (Release)
+              uses: actions/upload-artifact@v4
+              with:
+                  name: android-release-aab
+                  path: mobile_app/build/app/outputs/bundle/release/app-release.aab
+                  retention-days: 30
+
+            - name: Generate checksums
+              working-directory: ./mobile_app
+              run: |
+                  cd build/app/outputs/flutter-apk
+                  sha256sum app-debug.apk app-release.apk > checksums.txt
+                  cd ../../bundle/release
+                  sha256sum app-release.aab >> ../../../build/app/outputs/flutter-apk/checksums.txt
+                  cat ../../app/outputs/flutter-apk/checksums.txt
+
+            - name: Upload checksums
+              uses: actions/upload-artifact@v4
+              with:
+                  name: android-checksums
+                  path: mobile_app/build/app/outputs/flutter-apk/checksums.txt
+                  retention-days: 30
+
+    build-ios:
+        runs-on: macos-latest
+        if: github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'ios' || (github.event.inputs.build_type == '' && (github.event_name == 'push' || github.event_name == 'pull_request'))
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  flutter-version: "3.22.0"
+                  channel: "stable"
+                  cache: true
+
+            - name: Install CocoaPods
+              run: |
+                  sudo gem install cocoapods
+                  pod --version
+
+            - name: Install dependencies
+              working-directory: ./mobile_app
+              run: flutter pub get
+
+            - name: Install iOS dependencies
+              working-directory: ./mobile_app/ios
+              run: pod install
+
+            - name: Verify Flutter setup
+              working-directory: ./mobile_app
+              run: flutter doctor -v
+
+            - name: Build iOS (Debug)
+              working-directory: ./mobile_app
+              run: flutter build ios --debug --no-codesign
+
+            - name: Build iOS (Release)
+              working-directory: ./mobile_app
+              run: flutter build ios --release --no-codesign
+
+            - name: Build iOS IPA (requires code signing)
+              working-directory: ./mobile_app
+              run: |
+                  flutter build ipa --release || echo "IPA build skipped (requires code signing)"
+              continue-on-error: true
+
+            - name: Upload iOS Debug build
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ios-debug-build
+                  path: mobile_app/build/ios/iphoneos/Runner.app
+                  retention-days: 30
+              continue-on-error: true
+
+            - name: Upload iOS Release build
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ios-release-build
+                  path: mobile_app/build/ios/iphoneos/Runner.app
+                  retention-days: 30
+              continue-on-error: true
+
+            - name: Create iOS device file (for TestFlight/Distribution)
+              working-directory: ./mobile_app
+              run: |
+                  if [ -d "build/ios/iphoneos" ]; then
+                    cd build/ios/iphoneos
+                    zip -r ios-release-device.zip Runner.app
+                    cd ../../..
+                  fi
+              continue-on-error: true
+
+            - name: Upload iOS device file
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ios-release-device
+                  path: mobile_app/build/ios/iphoneos/ios-release-device.zip
+                  retention-days: 30
+              continue-on-error: true
+
+            - name: Generate checksums
+              working-directory: ./mobile_app
+              run: |
+                  cd build/ios/iphoneos
+                  if [ -f "Runner.app" ]; then
+                    find . -name "*.app" -o -name "*.zip" | xargs shasum -a 256 > checksums.txt || true
+                    cat checksums.txt || true
+                  fi
+              continue-on-error: true
+
+            - name: Upload iOS checksums
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ios-checksums
+                  path: mobile_app/build/ios/iphoneos/checksums.txt
+                  retention-days: 30
+              continue-on-error: true
+
+    build-summary:
+        runs-on: ubuntu-latest
+        needs: [build-android, build-ios]
+        if: always()
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Download Android artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  name: android-release-apk
+                  path: ./artifacts/android
+              continue-on-error: true
+
+            - name: Download Android AAB
+              uses: actions/download-artifact@v4
+              with:
+                  name: android-release-aab
+                  path: ./artifacts/android
+              continue-on-error: true
+
+            - name: Download iOS artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  name: ios-release-device
+                  path: ./artifacts/ios
+              continue-on-error: true
+
+            - name: Create release summary
+              run: |
+                  echo "# Build Summary" > build-summary.md
+                  echo "" >> build-summary.md
+                  echo "## Android" >> build-summary.md
+                  echo "- APK (Release): Available in artifacts" >> build-summary.md
+                  echo "- AAB (Release): Available in artifacts" >> build-summary.md
+                  echo "" >> build-summary.md
+                  echo "## iOS" >> build-summary.md
+                  echo "- Device Build: Available in artifacts" >> build-summary.md
+                  echo "" >> build-summary.md
+                  echo "Build completed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> build-summary.md
+                  cat build-summary.md
+
+            - name: Upload build summary
+              uses: actions/upload-artifact@v4
+              with:
+                  name: build-summary
+                  path: build-summary.md
+                  retention-days: 30

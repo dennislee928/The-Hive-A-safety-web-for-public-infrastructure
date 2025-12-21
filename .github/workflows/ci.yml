@@ -10,25 +10,9 @@ permissions:
   contents: read
   packages: write
 
-jobs:
-  # Run Go tests and linting
-  go-tests:
-    uses: ./.github/workflows/go-tests.yml
-    secrets: inherit
-  
-  # Build and push Docker image
-  docker-build:
-    uses: ./.github/workflows/docker-image.yml
-    secrets: inherit
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  
-  # Build Flutter app
-  flutter-build:
-    uses: ./.github/workflows/flutter-build.yml
-    secrets: inherit
-  
-  # Run Robot Framework tests
-  robot-tests:
-    uses: ./.github/workflows/robot-tests.yml
-    secrets: inherit
+# Note: This workflow serves as documentation for the CI pipeline.
+# Individual workflows (go-tests.yml, docker-image.yml, flutter-build.yml, robot-tests.yml)
+# will be triggered independently based on their own trigger conditions.
+#
+# To use reusable workflows, add 'workflow_call' to each workflow's 'on' section.
 

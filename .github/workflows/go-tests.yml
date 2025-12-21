@@ -1,101 +1,100 @@
 name: Go Tests and Lint
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/go-tests.yml'
-  pull_request:
-    branches: ["main"]
-    paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/go-tests.yml'
+    push:
+        branches: ["main"]
+        paths:
+            - "**/*.go"
+            - "go.mod"
+            - "go.sum"
+            - ".github/workflows/go-tests.yml"
+    pull_request:
+        branches: ["main"]
+        paths:
+            - "**/*.go"
+            - "go.mod"
+            - "go.sum"
+            - ".github/workflows/go-tests.yml"
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: erh_safety_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-          cache-dependency-path: go.sum
-      
-      - name: Install dependencies
-        run: |
-          go mod download
-          go mod verify
-      
-      - name: Run linter
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: latest
-          args: --timeout=5m
-        continue-on-error: true
-      
-      - name: Run tests
-        env:
-          DATABASE_URL: postgres://test:test@localhost:5432/erh_safety_test?sslmode=disable
-          REDIS_URL: redis://localhost:6379
-        run: |
-          go test -v -race -coverprofile=coverage.out ./...
-      
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.out
-          flags: unittests
-          name: codecov-umbrella
-        continue-on-error: true
-      
-      - name: Build
-        run: |
-          go build -v ./cmd/server
-      
-      - name: Check build output
-        run: |
-          if [ -f "./server" ]; then
-            echo "Build successful"
-            ls -lh ./server
-          else
-            echo "Build failed - server binary not found"
-            exit 1
-          fi
+    test:
+        runs-on: ubuntu-latest
 
+        services:
+            postgres:
+                image: postgres:15
+                env:
+                    POSTGRES_USER: test
+                    POSTGRES_PASSWORD: test
+                    POSTGRES_DB: erh_safety_test
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                ports:
+                    - 5432:5432
+
+            redis:
+                image: redis:7-alpine
+                options: >-
+                    --health-cmd "redis-cli ping"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                ports:
+                    - 6379:6379
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.23"
+                  cache-dependency-path: go.sum
+
+            - name: Install dependencies
+              run: |
+                  go mod download
+                  go mod verify
+
+            - name: Run linter
+              uses: golangci/golangci-lint-action@v4
+              with:
+                  version: latest
+                  args: --timeout=5m
+              continue-on-error: true
+
+            - name: Run tests
+              env:
+                  DATABASE_URL: postgres://test:test@localhost:5432/erh_safety_test?sslmode=disable
+                  REDIS_URL: redis://localhost:6379
+              run: |
+                  go test -v -race -coverprofile=coverage.out ./...
+
+            - name: Upload coverage
+              uses: codecov/codecov-action@v4
+              with:
+                  file: ./coverage.out
+                  flags: unittests
+                  name: codecov-umbrella
+              continue-on-error: true
+
+            - name: Build
+              run: |
+                  go build -v ./cmd/server
+
+            - name: Check build output
+              run: |
+                  if [ -f "./server" ]; then
+                    echo "Build successful"
+                    ls -lh ./server
+                  else
+                    echo "Build failed - server binary not found"
+                    exit 1
+                  fi
