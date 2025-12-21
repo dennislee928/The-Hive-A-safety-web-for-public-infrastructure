@@ -57,14 +57,20 @@ class AuthProvider with ChangeNotifier {
         if (apiKey != null) {
           _apiKey = apiKey;
           _isAuthenticated = true;
-        
-        // Save to storage
-        await StorageService.saveDeviceId(deviceId);
-        await StorageService.saveApiKey(_apiKey!);
-        
-        _isLoading = false;
-        notifyListeners();
-        return true;
+          
+          // Save to storage
+          await StorageService.saveDeviceId(deviceId);
+          await StorageService.saveApiKey(_apiKey!);
+          
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        } else {
+          _error = 'No API key received from server';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
       } else {
         _error = response.error ?? 'Registration failed';
         _isLoading = false;

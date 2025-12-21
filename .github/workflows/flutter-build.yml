@@ -160,13 +160,13 @@ jobs:
               working-directory: ./mobile_app
               run: flutter doctor -v
 
-            - name: Build iOS (Debug)
+            - name: Build iOS (Debug) - Simulator
               working-directory: ./mobile_app
-              run: flutter build ios --debug --no-codesign
+              run: flutter build ios --debug --simulator
 
-            - name: Build iOS (Release)
+            - name: Build iOS (Release) - Simulator
               working-directory: ./mobile_app
-              run: flutter build ios --release --no-codesign
+              run: flutter build ios --release --simulator
 
             - name: Build iOS IPA (requires code signing)
               working-directory: ./mobile_app
