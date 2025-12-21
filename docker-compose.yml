@@ -62,6 +62,22 @@ services:
       - ./:/app
     command: go run cmd/server/main.go
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: erh-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # Use service name for internal Docker network
+      NEXT_PUBLIC_API_URL: http://api:8080/api/v1
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

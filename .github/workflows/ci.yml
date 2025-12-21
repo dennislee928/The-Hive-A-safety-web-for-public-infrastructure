@@ -11,8 +11,12 @@ permissions:
   packages: write
 
 # Note: This workflow serves as documentation for the CI pipeline.
-# Individual workflows (go-tests.yml, docker-image.yml, flutter-build.yml, robot-tests.yml)
-# will be triggered independently based on their own trigger conditions.
+# Individual workflows will be triggered independently based on their own trigger conditions:
+# - go-tests.yml: Go tests and linting
+# - docker-image.yml: Backend API Docker image build
+# - frontend-docker-image.yml: Frontend Docker image build
+# - flutter-build.yml: Flutter mobile app build
+# - robot-tests.yml: Robot Framework tests
 #
 # To use reusable workflows, add 'workflow_call' to each workflow's 'on' section.
 
