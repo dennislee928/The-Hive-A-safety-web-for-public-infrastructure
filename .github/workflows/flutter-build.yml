@@ -53,6 +53,11 @@ jobs:
               working-directory: ./mobile_app
               run: flutter pub get
 
+            - name: Create Flutter platform folders if missing
+              working-directory: ./mobile_app
+              run: |
+                  flutter create --platforms=android,ios --project-name erh_safety_app .
+
             - name: Verify Flutter setup
               working-directory: ./mobile_app
               run: flutter doctor -v
@@ -130,9 +135,23 @@ jobs:
               working-directory: ./mobile_app
               run: flutter pub get
 
+            - name: Create Flutter platform folders if missing
+              working-directory: ./mobile_app
+              run: |
+                  # Check if ios folder exists, if not create it
+                  if [ ! -d "ios" ]; then
+                    flutter create --platforms=ios --project-name erh_safety_app .
+                  fi
+
             - name: Install iOS dependencies
               working-directory: ./mobile_app/ios
-              run: pod install
+              run: |
+                  if [ -f "Podfile" ]; then
+                    pod install
+                  else
+                    echo "Podfile not found, iOS platform may not be properly created"
+                    exit 1
+                  fi
 
             - name: Verify Flutter setup
               working-directory: ./mobile_app
