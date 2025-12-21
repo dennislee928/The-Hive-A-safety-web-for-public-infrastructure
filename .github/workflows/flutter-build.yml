@@ -61,6 +61,10 @@ jobs:
                     flutter create --platforms=android --project-name erh_safety_app .
                   fi
 
+            - name: Clean Flutter build cache
+              working-directory: ./mobile_app
+              run: flutter clean || true
+
             - name: Verify Flutter setup
               working-directory: ./mobile_app
               run: flutter doctor -v
@@ -146,11 +150,33 @@ jobs:
                     flutter create --platforms=ios --project-name erh_safety_app .
                   fi
 
+            - name: Update iOS Podfile for compatibility
+              working-directory: ./mobile_app/ios
+              run: |
+                  if [ -f "Podfile" ]; then
+                    sed -i.bak "s/^platform :ios.*$/platform :ios, '12.0'/" Podfile 2>/dev/null || sed -i "s/^platform :ios.*$/platform :ios, '12.0'/" Podfile
+                    sed -i.bak "s/^# platform :ios.*$/platform :ios, '12.0'/" Podfile 2>/dev/null || sed -i "s/^# platform :ios.*$/platform :ios, '12.0'/" Podfile
+                    if ! grep -q "^platform :ios" Podfile; then
+                      echo "platform :ios, '12.0'" > Podfile.tmp && cat Podfile >> Podfile.tmp && mv Podfile.tmp Podfile
+                    fi
+                    if ! grep -q "post_install do" Podfile; then
+                      echo "" >> Podfile
+                      echo "post_install do |installer|" >> Podfile
+                      echo "  installer.pods_project.targets.each do |target|" >> Podfile
+                      echo "    flutter_additional_ios_build_settings(target)" >> Podfile
+                      echo "    target.build_configurations.each do |config|" >> Podfile
+                      echo "      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'" >> Podfile
+                      echo "    end" >> Podfile
+                      echo "  end" >> Podfile
+                      echo "end" >> Podfile
+                    fi
+                  fi
+
             - name: Install iOS dependencies
               working-directory: ./mobile_app/ios
               run: |
                   if [ -f "Podfile" ]; then
-                    pod install
+                    pod install --repo-update
                   else
                     echo "Podfile not found, iOS platform may not be properly created"
                     exit 1
