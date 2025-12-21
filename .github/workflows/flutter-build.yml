@@ -155,7 +155,7 @@ jobs:
               run: |
                   if [ -f "ios/Podfile" ]; then
                     cd ios
-                    cat > /tmp/update_podfile.py << 'PYEOF'
+                    python3 << 'SCRIPT_END'
                   import re
                   with open('Podfile', 'r') as f:
                       content = f.read()
@@ -174,8 +174,7 @@ jobs:
                           content = re.sub(pattern, replacement, content, flags=re.DOTALL)
                   with open('Podfile', 'w') as f:
                       f.write(content)
-                  PYEOF
-                    python3 /tmp/update_podfile.py
+                  SCRIPT_END
                     cd ..
                   fi
 
